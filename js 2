@@ -1,0 +1,26 @@
+const fetch = require('node-fetch');
+const OWM_KEY = process.env.OWM_KEY; // set your key
+
+async function getDailyWeather(lat, lon, dateISO) {
+  // Use One Call (which returns daily array). dateISO is YYYY-MM-DD
+  const url = `https://api.openweathermap.org/data/3.0/onecall?lat=${lat}&lon=${lon}&exclude=minutely,hourly,alerts&appid=${OWM_KEY}&units=metric`;
+  const res = await fetch(url);
+  const data = await res.json();
+  // find daily entry that matches dateISO
+  const day = data.daily.find(d => {
+    const dISO = new Date(d.dt * 1000).toISOString().slice(0,10);
+    return dISO === dateISO;
+  });
+  return day; // contains temp, rain, snowfall etc.
+}
+
+async function metricHappened(day, metric) {
+  // example metrics:
+  // "rain_gt_5mm" -> day.rain > 5
+  if (!day) return false;
+  if (metric.startsWith('rain_gt_')) {
+    const threshold = parseFloat(metric.split('_')[2].replace('mm',''));
+    return (day.rain || 0) > threshold;
+  }
+  if (metric.startsWith('temp_max_gt_')) {
+    const t = parseFloat(metric.split
