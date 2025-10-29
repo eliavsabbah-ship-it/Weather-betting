@@ -1,0 +1,48 @@
+-- users
+CREATE TABLE users (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  display_name TEXT,
+  credits NUMERIC DEFAULT 1000, -- start balance if virtual currency
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+
+-- cities (import from GeoNames)
+CREATE TABLE cities (
+  id SERIAL PRIMARY KEY,
+  geoname_id INTEGER, -- optional
+  name TEXT NOT NULL,
+  admin1 TEXT,
+  country TEXT,
+  lat NUMERIC NOT NULL,
+  lon NUMERIC NOT NULL,
+  population BIGINT,
+  timezone TEXT
+);
+CREATE INDEX idx_cities_name ON cities (lower(name));
+CREATE INDEX idx_cities_latlon ON cities USING gist (ll_to_earth(lat, lon)); -- if Postgres earthdistance installed
+
+-- markets (a single market is "Will City X have > 5mm rain on 2025-11-01?")
+CREATE TABLE markets (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  city_id INTEGER REFERENCES cities(id) ON DELETE CASCADE,
+  metric TEXT NOT NULL, -- e.g., "rain_gt_5mm", "temp_max_gt_30C"
+  start_time TIMESTAMP WITH TIME ZONE NOT NULL,  -- when market resolves
+  status TEXT DEFAULT 'open', -- open, closed, settled
+  outcome BOOLEAN, -- true/false after settlement
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+
+-- bets
+CREATE TABLE bets (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id),
+  market_id UUID REFERENCES markets(id),
+  side BOOLEAN NOT NULL, -- true = yes/outcome will happen, false = no
+  amount NUMERIC NOT NULL,
+  odds NUMERIC NOT NULL,
+  placed_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  settled BOOLEAN DEFAULT false,
+  win_amount NUMERIC -- credited if win
+);
